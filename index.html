@@ -141,6 +141,15 @@
             color: #3fb950;
         }
 
+        .info {
+            background-color: #1f2937;
+            border-left: 4px solid #58a6ff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            color: #58a6ff;
+        }
+
         .heatmap-container {
             background-color: #161b22;
             border: 1px solid #30363d;
@@ -305,16 +314,16 @@
             <ol>
                 <li>Go to <a href="https://www.discgolfscene.com/tournaments" target="_blank" style="color: #58a6ff;">discgolfscene.com/tournaments</a></li>
                 <li>Search for tournaments (select your region, date range, etc.)</li>
-                <li>Copy the entire page content (Ctrl+A, then Ctrl+C)</li>
-                <li>Paste the HTML content in the textarea below</li>
+                <li>Copy the page URL from your browser's address bar</li>
+                <li>Paste the URL in the input field below</li>
                 <li>Click "Generate Heatmap" to visualize the tournament schedule</li>
             </ol>
         </div>
 
         <div class="input-section">
             <div class="input-group">
-                <label for="htmlContent">Paste the HTML content from discgolfscene.com:</label>
-                <textarea id="htmlContent" placeholder="Paste the entire page HTML here..."></textarea>
+                <label for="urlInput">Paste the URL from discgolfscene.com:</label>
+                <input type="text" id="urlInput" placeholder="https://www.discgolfscene.com/tournaments/...">
             </div>
             <button id="generateBtn" onclick="generateHeatmap()">Generate Heatmap</button>
         </div>
@@ -468,20 +477,39 @@
             return [];
         }
 
-        function generateHeatmap() {
-            const htmlContent = document.getElementById('htmlContent').value.trim();
+        async function generateHeatmap() {
+            const url = document.getElementById('urlInput').value.trim();
+            const btn = document.getElementById('generateBtn');
 
-            if (!htmlContent) {
-                showMessage('Please paste HTML content from discgolfscene.com', 'error');
+            if (!url) {
+                showMessage('Please paste a URL from discgolfscene.com', 'error');
                 return;
             }
 
+            // Validate URL
             try {
+                new URL(url);
+            } catch (e) {
+                showMessage('Please enter a valid URL', 'error');
+                return;
+            }
+
+            // Disable button and show loading state
+            btn.disabled = true;
+            btn.textContent = 'Fetching...';
+            showMessage('Fetching tournament data...', 'info');
+
+            try {
+                // Fetch HTML from URL using CORS proxy
+                const htmlContent = await fetchHTML(url);
+
                 // Parse the HTML
                 const tournaments = parseHTML(htmlContent);
 
                 if (tournaments.length === 0) {
-                    showMessage('No tournaments found in the HTML. Please make sure you copied the entire page content from discgolfscene.com.', 'error');
+                    showMessage('No tournaments found in the page. Please make sure the URL is from discgolfscene.com/tournaments.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Generate Heatmap';
                     return;
                 }
 
@@ -511,9 +539,49 @@
 
                 showMessage(`Successfully parsed ${tournaments.length} tournaments!`, 'success');
             } catch (error) {
-                showMessage(`Error parsing HTML: ${error.message}`, 'error');
+                showMessage(`Error: ${error.message}`, 'error');
                 console.error(error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate Heatmap';
             }
+        }
+
+        async function fetchHTML(url) {
+            // Try multiple CORS proxy services in order of preference
+            const proxies = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                url // Try direct fetch as last resort
+            ];
+
+            let lastError = null;
+
+            for (let i = 0; i < proxies.length; i++) {
+                try {
+                    const response = await fetch(proxies[i]);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const html = await response.text();
+
+                    // Validate we got HTML content
+                    if (!html || html.length < 100) {
+                        throw new Error('Received empty or invalid content');
+                    }
+
+                    return html;
+                } catch (error) {
+                    lastError = error;
+                    console.warn(`Proxy ${i + 1} failed:`, error.message);
+                    // Continue to next proxy
+                }
+            }
+
+            // If all proxies failed
+            throw new Error(`Failed to fetch URL. ${lastError ? lastError.message : 'All proxies failed.'} Try using a different URL or check your internet connection.`);
         }
 
         function createHeatmap(tournamentsByDate) {
@@ -694,28 +762,6 @@
             statsDiv.style.display = 'grid';
         }
 
-        // Allow dragging files
-        const textarea = document.getElementById('htmlContent');
-
-        textarea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-
-        textarea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                const file = files[0];
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    textarea.value = event.target.result;
-                };
-                reader.readAsText(file);
-            }
-        });
     </script>
 </body>
 </html>
