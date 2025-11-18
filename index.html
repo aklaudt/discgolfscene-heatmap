@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disc Golf Tournament Heatmap</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #58a6ff;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #8b949e;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .input-section {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #c9d1d9;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+
+        button {
+            background-color: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #2ea043;
+        }
+
+        button:disabled {
+            background-color: #21262d;
+            color: #484f58;
+            cursor: not-allowed;
+        }
+
+        .info-box {
+            background-color: #1f2937;
+            border-left: 4px solid #58a6ff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box h3 {
+            color: #58a6ff;
+            margin-bottom: 10px;
+        }
+
+        .info-box ol {
+            margin-left: 20px;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+
+        .error {
+            background-color: #2c1c1c;
+            border-left: 4px solid #f85149;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            color: #f85149;
+        }
+
+        .success {
+            background-color: #1c2c1c;
+            border-left: 4px solid #3fb950;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            color: #3fb950;
+        }
+
+        .heatmap-container {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 30px;
+            overflow-x: auto;
+        }
+
+        .heatmap-title {
+            margin-bottom: 20px;
+            color: #c9d1d9;
+        }
+
+        .heatmap {
+            display: inline-block;
+            min-width: 100%;
+        }
+
+        .heatmap-months {
+            display: flex;
+            margin-bottom: 5px;
+            padding-left: 30px;
+        }
+
+        .heatmap-month {
+            flex: 1;
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        .heatmap-body {
+            display: flex;
+        }
+
+        .heatmap-days {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            margin-right: 10px;
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        .heatmap-grid {
+            display: grid;
+            grid-template-rows: repeat(7, 1fr);
+            grid-auto-flow: column;
+            gap: 3px;
+        }
+
+        .heatmap-cell {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .heatmap-cell[data-level="0"] {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+        }
+
+        .heatmap-cell[data-level="1"] {
+            background-color: #0e4429;
+        }
+
+        .heatmap-cell[data-level="2"] {
+            background-color: #006d32;
+        }
+
+        .heatmap-cell[data-level="3"] {
+            background-color: #26a641;
+        }
+
+        .heatmap-cell[data-level="4"] {
+            background-color: #39d353;
+        }
+
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        .heatmap-legend-item {
+            display: flex;
+            align-items: center;
+            margin-left: 10px;
+        }
+
+        .heatmap-legend-cell {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-left: 5px;
+        }
+
+        .tooltip {
+            position: fixed;
+            background-color: #1c2128;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .tooltip.show {
+            display: block;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .stat-label {
+            color: #8b949e;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #58a6ff;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        code {
+            background-color: #1f2937;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⛓️ Disc Golf Tournament Heatmap</h1>
+        <p class="subtitle">Visualize tournament schedules with a GitHub-style contribution graph</p>
+
+        <div class="info-box">
+            <h3>How to use:</h3>
+            <ol>
+                <li>Go to <a href="https://www.discgolfscene.com/tournaments" target="_blank" style="color: #58a6ff;">discgolfscene.com/tournaments</a></li>
+                <li>Search for tournaments (select your region, date range, etc.)</li>
+                <li>Copy the entire page content (Ctrl+A, then Ctrl+C)</li>
+                <li>Paste the HTML content in the textarea below</li>
+                <li>Click "Generate Heatmap" to visualize the tournament schedule</li>
+            </ol>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <label for="htmlContent">Paste the HTML content from discgolfscene.com:</label>
+                <textarea id="htmlContent" placeholder="Paste the entire page HTML here..."></textarea>
+            </div>
+            <button id="generateBtn" onclick="generateHeatmap()">Generate Heatmap</button>
+        </div>
+
+        <div id="message"></div>
+        <div id="stats" class="stats" style="display: none;"></div>
+        <div id="heatmapContainer"></div>
+    </div>
+
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        let tournamentsData = [];
+
+        function showMessage(message, type = 'info') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = type;
+            messageDiv.innerHTML = message;
+            messageDiv.style.display = 'block';
+        }
+
+        function parseHTML(htmlContent) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const tournaments = [];
+
+            // Try to find tournament rows - discgolfscene uses various table structures
+            // We'll look for common patterns in their HTML
+            const rows = doc.querySelectorAll('tr');
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return;
+
+                // Look for date patterns
+                let dateText = '';
+                let tournamentName = '';
+                let location = '';
+
+                // Try to extract date from various possible formats
+                for (let cell of cells) {
+                    const text = cell.textContent.trim();
+
+                    // Look for date patterns (e.g., "Jan 15, 2024", "01/15/2024", "2024-01-15")
+                    const datePatterns = [
+                        /(\w{3})\s+(\d{1,2})\s*-?\s*(\d{1,2})?,?\s*(\d{4})/i, // Jan 15-16, 2024
+                        /(\d{1,2})\/(\d{1,2})\/(\d{4})/,  // 01/15/2024
+                        /(\d{4})-(\d{2})-(\d{2})/  // 2024-01-15
+                    ];
+
+                    for (let pattern of datePatterns) {
+                        if (pattern.test(text)) {
+                            dateText = text;
+                            break;
+                        }
+                    }
+
+                    // Look for links which often contain tournament names
+                    const link = cell.querySelector('a');
+                    if (link && !tournamentName && link.href.includes('tournament')) {
+                        tournamentName = link.textContent.trim();
+                    }
+                }
+
+                if (dateText && tournamentName) {
+                    tournaments.push({
+                        name: tournamentName,
+                        date: dateText,
+                        location: location
+                    });
+                }
+            });
+
+            // Also try to find tournaments in list format
+            const links = doc.querySelectorAll('a[href*="tournament"]');
+            links.forEach(link => {
+                const parent = link.parentElement;
+                const grandParent = parent?.parentElement;
+                const dateText = parent?.textContent || grandParent?.textContent || '';
+
+                const datePatterns = [
+                    /(\w{3})\s+(\d{1,2})\s*-?\s*(\d{1,2})?,?\s*(\d{4})/i,
+                    /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
+                    /(\d{4})-(\d{2})-(\d{2})/
+                ];
+
+                for (let pattern of datePatterns) {
+                    if (pattern.test(dateText)) {
+                        const name = link.textContent.trim();
+                        if (name && !tournaments.find(t => t.name === name)) {
+                            tournaments.push({
+                                name: name,
+                                date: dateText.match(pattern)[0],
+                                location: ''
+                            });
+                        }
+                        break;
+                    }
+                }
+            });
+
+            return tournaments;
+        }
+
+        function parseDateString(dateStr) {
+            // Handle various date formats
+            const monthMap = {
+                'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+                'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+            };
+
+            // Format: "Jan 15-16, 2024" or "Jan 15, 2024"
+            const pattern1 = /(\w{3})\s+(\d{1,2})\s*-?\s*(\d{1,2})?,?\s*(\d{4})/i;
+            const match1 = dateStr.match(pattern1);
+            if (match1) {
+                const month = monthMap[match1[1]];
+                const day = parseInt(match1[2]);
+                const year = parseInt(match1[4]);
+                const dates = [new Date(year, month, day)];
+
+                // If it's a date range, add all days
+                if (match1[3]) {
+                    const endDay = parseInt(match1[3]);
+                    for (let d = day + 1; d <= endDay; d++) {
+                        dates.push(new Date(year, month, d));
+                    }
+                }
+                return dates;
+            }
+
+            // Format: "01/15/2024"
+            const pattern2 = /(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+            const match2 = dateStr.match(pattern2);
+            if (match2) {
+                const month = parseInt(match2[1]) - 1;
+                const day = parseInt(match2[2]);
+                const year = parseInt(match2[3]);
+                return [new Date(year, month, day)];
+            }
+
+            // Format: "2024-01-15"
+            const pattern3 = /(\d{4})-(\d{2})-(\d{2})/;
+            const match3 = dateStr.match(pattern3);
+            if (match3) {
+                const year = parseInt(match3[1]);
+                const month = parseInt(match3[2]) - 1;
+                const day = parseInt(match3[3]);
+                return [new Date(year, month, day)];
+            }
+
+            return [];
+        }
+
+        function generateHeatmap() {
+            const htmlContent = document.getElementById('htmlContent').value.trim();
+
+            if (!htmlContent) {
+                showMessage('Please paste HTML content from discgolfscene.com', 'error');
+                return;
+            }
+
+            try {
+                // Parse the HTML
+                const tournaments = parseHTML(htmlContent);
+
+                if (tournaments.length === 0) {
+                    showMessage('No tournaments found in the HTML. Please make sure you copied the entire page content from discgolfscene.com.', 'error');
+                    return;
+                }
+
+                // Store tournaments data globally
+                tournamentsData = tournaments;
+
+                // Parse dates and create tournament map
+                const tournamentsByDate = new Map();
+                tournaments.forEach(tournament => {
+                    const dates = parseDateString(tournament.date);
+                    dates.forEach(date => {
+                        if (date && !isNaN(date.getTime())) {
+                            const dateKey = date.toISOString().split('T')[0];
+                            if (!tournamentsByDate.has(dateKey)) {
+                                tournamentsByDate.set(dateKey, []);
+                            }
+                            tournamentsByDate.get(dateKey).push(tournament);
+                        }
+                    });
+                });
+
+                // Create heatmap
+                createHeatmap(tournamentsByDate);
+
+                // Show statistics
+                showStatistics(tournaments, tournamentsByDate);
+
+                showMessage(`Successfully parsed ${tournaments.length} tournaments!`, 'success');
+            } catch (error) {
+                showMessage(`Error parsing HTML: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        function createHeatmap(tournamentsByDate) {
+            const container = document.getElementById('heatmapContainer');
+
+            // Determine the year range
+            const dates = Array.from(tournamentsByDate.keys()).map(d => new Date(d));
+            const minDate = dates.length > 0 ? new Date(Math.min(...dates)) : new Date();
+            const maxDate = dates.length > 0 ? new Date(Math.max(...dates)) : new Date();
+
+            const year = minDate.getFullYear();
+            const startDate = new Date(year, 0, 1);
+            const endDate = new Date(year, 11, 31);
+
+            // Calculate max tournaments per day for scaling
+            const maxPerDay = Math.max(...Array.from(tournamentsByDate.values()).map(arr => arr.length));
+
+            // Generate heatmap HTML
+            let html = `
+                <div class="heatmap-container">
+                    <h2 class="heatmap-title">Tournament Schedule for ${year}</h2>
+                    <div class="heatmap">
+                        <div class="heatmap-months">
+                            ${generateMonthLabels(startDate, endDate)}
+                        </div>
+                        <div class="heatmap-body">
+                            <div class="heatmap-days">
+                                <span>Mon</span>
+                                <span>Wed</span>
+                                <span>Fri</span>
+                            </div>
+                            <div class="heatmap-grid">
+                                ${generateCells(startDate, endDate, tournamentsByDate, maxPerDay)}
+                            </div>
+                        </div>
+                        <div class="heatmap-legend">
+                            <span>Less</span>
+                            ${[0, 1, 2, 3, 4].map(level =>
+                                `<div class="heatmap-legend-cell" data-level="${level}"></div>`
+                            ).join('')}
+                            <span>More</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function generateMonthLabels(startDate, endDate) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            let html = '';
+            let currentMonth = -1;
+
+            const date = new Date(startDate);
+            const firstDay = date.getDay();
+
+            // Move to first Sunday
+            date.setDate(date.getDate() - firstDay);
+
+            let weekCount = 0;
+            while (date <= endDate) {
+                const month = date.getMonth();
+                if (month !== currentMonth && date.getDate() <= 7) {
+                    html += `<div class="heatmap-month" style="margin-left: ${weekCount * 15}px;">${months[month]}</div>`;
+                    currentMonth = month;
+                    weekCount = 0;
+                }
+                date.setDate(date.getDate() + 7);
+                weekCount++;
+            }
+
+            return html;
+        }
+
+        function generateCells(startDate, endDate, tournamentsByDate, maxPerDay) {
+            let html = '';
+            const date = new Date(startDate);
+
+            // Move to first Sunday before start date
+            const firstDay = date.getDay();
+            date.setDate(date.getDate() - firstDay);
+
+            while (date <= endDate || date.getDay() !== 0) {
+                const dateKey = date.toISOString().split('T')[0];
+                const tournaments = tournamentsByDate.get(dateKey) || [];
+                const count = tournaments.length;
+
+                // Calculate level (0-4) based on count
+                let level = 0;
+                if (count > 0) {
+                    if (maxPerDay <= 1) {
+                        level = 4;
+                    } else {
+                        level = Math.min(4, Math.ceil((count / maxPerDay) * 4));
+                    }
+                }
+
+                const isOutOfRange = date < startDate || date > endDate;
+                const opacity = isOutOfRange ? 'opacity: 0.3;' : '';
+
+                const tournamentNames = tournaments.map(t => t.name).join('<br>');
+                const tooltipData = tournaments.length > 0
+                    ? `data-tooltip="${dateKey}: ${count} tournament${count > 1 ? 's' : ''}<br>${tournamentNames}"`
+                    : `data-tooltip="${dateKey}: No tournaments"`;
+
+                html += `<div class="heatmap-cell"
+                             data-level="${level}"
+                             data-date="${dateKey}"
+                             ${tooltipData}
+                             style="${opacity}"
+                             onmouseover="showTooltip(event, this)"
+                             onmouseout="hideTooltip()"></div>`;
+
+                date.setDate(date.getDate() + 1);
+            }
+
+            return html;
+        }
+
+        function showTooltip(event, element) {
+            const tooltip = document.getElementById('tooltip');
+            const tooltipText = element.getAttribute('data-tooltip');
+
+            tooltip.innerHTML = tooltipText.replace(/<br>/g, '<br>');
+            tooltip.classList.add('show');
+
+            const x = event.clientX + 10;
+            const y = event.clientY + 10;
+
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+        }
+
+        function hideTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.classList.remove('show');
+        }
+
+        function showStatistics(tournaments, tournamentsByDate) {
+            const statsDiv = document.getElementById('stats');
+
+            const totalTournaments = tournaments.length;
+            const totalDays = tournamentsByDate.size;
+            const avgPerDay = totalDays > 0 ? (totalTournaments / totalDays).toFixed(1) : 0;
+            const maxPerDay = Math.max(...Array.from(tournamentsByDate.values()).map(arr => arr.length));
+
+            // Find busiest day
+            let busiestDay = '';
+            let busiestCount = 0;
+            tournamentsByDate.forEach((tournaments, date) => {
+                if (tournaments.length > busiestCount) {
+                    busiestCount = tournaments.length;
+                    busiestDay = date;
+                }
+            });
+
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Total Tournaments</div>
+                    <div class="stat-value">${totalTournaments}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Days with Tournaments</div>
+                    <div class="stat-value">${totalDays}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Busiest Day</div>
+                    <div class="stat-value">${busiestDay || 'N/A'}</div>
+                    <div class="stat-label">${busiestCount} tournaments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Max Per Day</div>
+                    <div class="stat-value">${maxPerDay}</div>
+                </div>
+            `;
+
+            statsDiv.style.display = 'grid';
+        }
+
+        // Allow dragging files
+        const textarea = document.getElementById('htmlContent');
+
+        textarea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        textarea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    textarea.value = event.target.result;
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
+</body>
+</html>
