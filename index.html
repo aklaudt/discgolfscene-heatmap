@@ -302,6 +302,41 @@
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
         }
+
+        .weekends-list {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .weekends-list h2 {
+            color: #c9d1d9;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .weekends-list ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .weekends-list li {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #8b949e;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .weekends-list li:hover {
+            border-color: #58a6ff;
+            background-color: #161b22;
+        }
     </style>
 </head>
 <body>
@@ -331,6 +366,7 @@
         <div id="message"></div>
         <div id="stats" class="stats" style="display: none;"></div>
         <div id="heatmapContainer"></div>
+        <div id="weekendsListContainer"></div>
     </div>
 
     <div id="tooltip" class="tooltip"></div>
@@ -777,6 +813,66 @@
                 }
             });
 
+            // Calculate total weekends and weekends without tournaments
+            const dates = Array.from(tournamentsByDate.keys()).map(d => new Date(d));
+            const minDate = dates.length > 0 ? new Date(Math.min(...dates)) : new Date();
+            const year = minDate.getFullYear();
+            const startDate = new Date(year, 0, 1);
+            const endDate = new Date(year, 11, 31);
+
+            // Count total weekends in the year
+            let totalWeekends = 0;
+            const date = new Date(startDate);
+            const firstDay = date.getDay();
+            const daysUntilSaturday = (firstDay + 1) % 7;
+            date.setDate(date.getDate() - daysUntilSaturday);
+
+            while (date <= endDate) {
+                if (date >= startDate) {
+                    totalWeekends++;
+                }
+                date.setDate(date.getDate() + 7);
+            }
+
+            // Count weekends with tournaments
+            const weekendsWithTournaments = new Set();
+            tournamentsByDate.forEach((tournaments, dateKey) => {
+                const tournamentDate = new Date(dateKey);
+                const dayOfWeek = tournamentDate.getDay();
+                // If it's Saturday (6) or Sunday (0)
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    // Calculate the Saturday of this weekend
+                    const saturday = new Date(tournamentDate);
+                    if (dayOfWeek === 0) {
+                        saturday.setDate(saturday.getDate() - 1);
+                    }
+                    const weekendKey = saturday.toISOString().split('T')[0];
+                    weekendsWithTournaments.add(weekendKey);
+                }
+            });
+
+            const weekendsWithoutTournaments = totalWeekends - weekendsWithTournaments.size;
+
+            // Collect all weekends without tournaments
+            const allWeekends = [];
+            const weekendDate = new Date(startDate);
+            const firstDayCheck = weekendDate.getDay();
+            const daysToSaturday = (firstDayCheck + 1) % 7;
+            weekendDate.setDate(weekendDate.getDate() - daysToSaturday);
+
+            while (weekendDate <= endDate) {
+                if (weekendDate >= startDate) {
+                    const saturdayKey = weekendDate.toISOString().split('T')[0];
+                    if (!weekendsWithTournaments.has(saturdayKey)) {
+                        allWeekends.push(new Date(weekendDate));
+                    }
+                }
+                weekendDate.setDate(weekendDate.getDate() + 7);
+            }
+
+            // Sort weekends chronologically
+            allWeekends.sort((a, b) => a - b);
+
             statsDiv.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-label">Total Tournaments</div>
@@ -785,6 +881,10 @@
                 <div class="stat-card">
                     <div class="stat-label">Days with Tournaments</div>
                     <div class="stat-value">${totalDays}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Weekends without Tournaments</div>
+                    <div class="stat-value">${weekendsWithoutTournaments}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Busiest Day</div>
@@ -798,6 +898,53 @@
             `;
 
             statsDiv.style.display = 'grid';
+
+            // Display weekends without tournaments list
+            displayWeekendsWithoutTournaments(allWeekends);
+        }
+
+        function displayWeekendsWithoutTournaments(weekends) {
+            const container = document.getElementById('weekendsListContainer');
+
+            if (weekends.length === 0) {
+                container.innerHTML = '';
+                container.style.display = 'none';
+                return;
+            }
+
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+
+            const formatWeekend = (date) => {
+                const saturday = new Date(date);
+                const sunday = new Date(date);
+                sunday.setDate(saturday.getDate() + 1);
+
+                const month = monthNames[saturday.getMonth()];
+                const satDay = saturday.getDate();
+                const sunDay = sunday.getDate();
+
+                if (saturday.getMonth() === sunday.getMonth()) {
+                    return `${month} ${satDay}-${sunDay}, ${saturday.getFullYear()}`;
+                } else {
+                    return `${monthNames[saturday.getMonth()]} ${satDay} - ${monthNames[sunday.getMonth()]} ${sunDay}, ${saturday.getFullYear()}`;
+                }
+            };
+
+            const listItems = weekends.map(weekend =>
+                `<li>${formatWeekend(weekend)}</li>`
+            ).join('');
+
+            container.innerHTML = `
+                <div class="weekends-list">
+                    <h2>Weekends without Tournaments (${weekends.length})</h2>
+                    <ul>
+                        ${listItems}
+                    </ul>
+                </div>
+            `;
+
+            container.style.display = 'block';
         }
 
     </script>
