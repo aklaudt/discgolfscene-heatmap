@@ -777,46 +777,6 @@
                 }
             });
 
-            // Calculate total weekends and weekends without tournaments
-            const dates = Array.from(tournamentsByDate.keys()).map(d => new Date(d));
-            const minDate = dates.length > 0 ? new Date(Math.min(...dates)) : new Date();
-            const year = minDate.getFullYear();
-            const startDate = new Date(year, 0, 1);
-            const endDate = new Date(year, 11, 31);
-
-            // Count total weekends in the year
-            let totalWeekends = 0;
-            const date = new Date(startDate);
-            const firstDay = date.getDay();
-            const daysUntilSaturday = (firstDay + 1) % 7;
-            date.setDate(date.getDate() - daysUntilSaturday);
-
-            while (date <= endDate) {
-                if (date >= startDate) {
-                    totalWeekends++;
-                }
-                date.setDate(date.getDate() + 7);
-            }
-
-            // Count weekends with tournaments
-            const weekendsWithTournaments = new Set();
-            tournamentsByDate.forEach((tournaments, dateKey) => {
-                const tournamentDate = new Date(dateKey);
-                const dayOfWeek = tournamentDate.getDay();
-                // If it's Saturday (6) or Sunday (0)
-                if (dayOfWeek === 0 || dayOfWeek === 6) {
-                    // Calculate the Saturday of this weekend
-                    const saturday = new Date(tournamentDate);
-                    if (dayOfWeek === 0) {
-                        saturday.setDate(saturday.getDate() - 1);
-                    }
-                    const weekendKey = saturday.toISOString().split('T')[0];
-                    weekendsWithTournaments.add(weekendKey);
-                }
-            });
-
-            const weekendsWithoutTournaments = totalWeekends - weekendsWithTournaments.size;
-
             statsDiv.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-label">Total Tournaments</div>
@@ -825,10 +785,6 @@
                 <div class="stat-card">
                     <div class="stat-label">Days with Tournaments</div>
                     <div class="stat-value">${totalDays}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Weekends without Tournaments</div>
-                    <div class="stat-value">${weekendsWithoutTournaments}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Busiest Day</div>
