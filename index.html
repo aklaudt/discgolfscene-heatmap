@@ -196,7 +196,7 @@
 
         .heatmap-grid {
             display: grid;
-            grid-template-rows: repeat(7, 1fr);
+            grid-template-rows: repeat(2, 1fr);
             grid-auto-flow: column;
             gap: 3px;
         }
@@ -609,9 +609,8 @@
                         </div>
                         <div class="heatmap-body">
                             <div class="heatmap-days">
-                                <span>Mon</span>
-                                <span>Wed</span>
-                                <span>Fri</span>
+                                <span>Sat</span>
+                                <span>Sun</span>
                             </div>
                             <div class="heatmap-grid">
                                 ${generateCells(startDate, endDate, tournamentsByDate, maxPerDay)}
@@ -661,42 +660,81 @@
             let html = '';
             const date = new Date(startDate);
 
-            // Move to first Sunday before start date
+            // Move to first Saturday before or on start date
             const firstDay = date.getDay();
-            date.setDate(date.getDate() - firstDay);
+            // Days until Saturday: if today is Sunday (0), go back 1 day to Saturday
+            // if today is Monday (1), go back 2 days, etc.
+            const daysUntilSaturday = (firstDay + 1) % 7;
+            date.setDate(date.getDate() - daysUntilSaturday);
 
-            while (date <= endDate || date.getDay() !== 0) {
-                const dateKey = date.toISOString().split('T')[0];
-                const tournaments = tournamentsByDate.get(dateKey) || [];
-                const count = tournaments.length;
+            // Generate cells for weekends only (Saturday and Sunday)
+            while (date <= endDate) {
+                // Generate Saturday cell (current date should be Saturday)
+                const saturdayDate = new Date(date);
+                const saturdayKey = saturdayDate.toISOString().split('T')[0];
+                const saturdayTournaments = tournamentsByDate.get(saturdayKey) || [];
+                const saturdayCount = saturdayTournaments.length;
 
-                // Calculate level (0-4) based on count
-                let level = 0;
-                if (count > 0) {
+                let saturdayLevel = 0;
+                if (saturdayCount > 0) {
                     if (maxPerDay <= 1) {
-                        level = 4;
+                        saturdayLevel = 4;
                     } else {
-                        level = Math.min(4, Math.ceil((count / maxPerDay) * 4));
+                        saturdayLevel = Math.min(4, Math.ceil((saturdayCount / maxPerDay) * 4));
                     }
                 }
 
-                const isOutOfRange = date < startDate || date > endDate;
-                const opacity = isOutOfRange ? 'opacity: 0.3;' : '';
+                const saturdayOutOfRange = saturdayDate < startDate || saturdayDate > endDate;
+                const saturdayOpacity = saturdayOutOfRange ? 'opacity: 0.3;' : '';
 
-                const tournamentNames = tournaments.map(t => t.name).join('<br>');
-                const tooltipData = tournaments.length > 0
-                    ? `data-tooltip="${dateKey}: ${count} tournament${count > 1 ? 's' : ''}<br>${tournamentNames}"`
-                    : `data-tooltip="${dateKey}: No tournaments"`;
+                const saturdayNames = saturdayTournaments.map(t => t.name).join('<br>');
+                const saturdayTooltip = saturdayTournaments.length > 0
+                    ? `data-tooltip="${saturdayKey}: ${saturdayCount} tournament${saturdayCount > 1 ? 's' : ''}<br>${saturdayNames}"`
+                    : `data-tooltip="${saturdayKey}: No tournaments"`;
 
                 html += `<div class="heatmap-cell"
-                             data-level="${level}"
-                             data-date="${dateKey}"
-                             ${tooltipData}
-                             style="${opacity}"
+                             data-level="${saturdayLevel}"
+                             data-date="${saturdayKey}"
+                             ${saturdayTooltip}
+                             style="${saturdayOpacity}"
                              onmouseover="showTooltip(event, this)"
                              onmouseout="hideTooltip()"></div>`;
 
-                date.setDate(date.getDate() + 1);
+                // Generate Sunday cell
+                const sundayDate = new Date(saturdayDate);
+                sundayDate.setDate(saturdayDate.getDate() + 1);
+
+                const sundayKey = sundayDate.toISOString().split('T')[0];
+                const sundayTournaments = tournamentsByDate.get(sundayKey) || [];
+                const sundayCount = sundayTournaments.length;
+
+                let sundayLevel = 0;
+                if (sundayCount > 0) {
+                    if (maxPerDay <= 1) {
+                        sundayLevel = 4;
+                    } else {
+                        sundayLevel = Math.min(4, Math.ceil((sundayCount / maxPerDay) * 4));
+                    }
+                }
+
+                const sundayOutOfRange = sundayDate < startDate || sundayDate > endDate;
+                const sundayOpacity = sundayOutOfRange ? 'opacity: 0.3;' : '';
+
+                const sundayNames = sundayTournaments.map(t => t.name).join('<br>');
+                const sundayTooltip = sundayTournaments.length > 0
+                    ? `data-tooltip="${sundayKey}: ${sundayCount} tournament${sundayCount > 1 ? 's' : ''}<br>${sundayNames}"`
+                    : `data-tooltip="${sundayKey}: No tournaments"`;
+
+                html += `<div class="heatmap-cell"
+                             data-level="${sundayLevel}"
+                             data-date="${sundayKey}"
+                             ${sundayTooltip}
+                             style="${sundayOpacity}"
+                             onmouseover="showTooltip(event, this)"
+                             onmouseout="hideTooltip()"></div>`;
+
+                // Move to next week (next Saturday)
+                date.setDate(date.getDate() + 7);
             }
 
             return html;
