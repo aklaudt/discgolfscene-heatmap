@@ -196,7 +196,7 @@
 
         .heatmap-grid {
             display: grid;
-            grid-template-rows: repeat(7, 1fr);
+            grid-template-rows: repeat(2, 1fr);
             grid-auto-flow: column;
             gap: 3px;
         }
@@ -609,9 +609,8 @@
                         </div>
                         <div class="heatmap-body">
                             <div class="heatmap-days">
-                                <span>Mon</span>
-                                <span>Wed</span>
-                                <span>Fri</span>
+                                <span>Sat</span>
+                                <span>Sun</span>
                             </div>
                             <div class="heatmap-grid">
                                 ${generateCells(startDate, endDate, tournamentsByDate, maxPerDay)}
@@ -661,42 +660,81 @@
             let html = '';
             const date = new Date(startDate);
 
-            // Move to first Sunday before start date
+            // Move to first Saturday before or on start date
             const firstDay = date.getDay();
-            date.setDate(date.getDate() - firstDay);
+            // Days until Saturday: if today is Sunday (0), go back 1 day to Saturday
+            // if today is Monday (1), go back 2 days, etc.
+            const daysUntilSaturday = (firstDay + 1) % 7;
+            date.setDate(date.getDate() - daysUntilSaturday);
 
-            while (date <= endDate || date.getDay() !== 0) {
-                const dateKey = date.toISOString().split('T')[0];
-                const tournaments = tournamentsByDate.get(dateKey) || [];
-                const count = tournaments.length;
+            // Generate cells for weekends only (Saturday and Sunday)
+            while (date <= endDate) {
+                // Generate Saturday cell (current date should be Saturday)
+                const saturdayDate = new Date(date);
+                const saturdayKey = saturdayDate.toISOString().split('T')[0];
+                const saturdayTournaments = tournamentsByDate.get(saturdayKey) || [];
+                const saturdayCount = saturdayTournaments.length;
 
-                // Calculate level (0-4) based on count
-                let level = 0;
-                if (count > 0) {
+                let saturdayLevel = 0;
+                if (saturdayCount > 0) {
                     if (maxPerDay <= 1) {
-                        level = 4;
+                        saturdayLevel = 4;
                     } else {
-                        level = Math.min(4, Math.ceil((count / maxPerDay) * 4));
+                        saturdayLevel = Math.min(4, Math.ceil((saturdayCount / maxPerDay) * 4));
                     }
                 }
 
-                const isOutOfRange = date < startDate || date > endDate;
-                const opacity = isOutOfRange ? 'opacity: 0.3;' : '';
+                const saturdayOutOfRange = saturdayDate < startDate || saturdayDate > endDate;
+                const saturdayOpacity = saturdayOutOfRange ? 'opacity: 0.3;' : '';
 
-                const tournamentNames = tournaments.map(t => t.name).join('<br>');
-                const tooltipData = tournaments.length > 0
-                    ? `data-tooltip="${dateKey}: ${count} tournament${count > 1 ? 's' : ''}<br>${tournamentNames}"`
-                    : `data-tooltip="${dateKey}: No tournaments"`;
+                const saturdayNames = saturdayTournaments.map(t => t.name).join('<br>');
+                const saturdayTooltip = saturdayTournaments.length > 0
+                    ? `data-tooltip="${saturdayKey}: ${saturdayCount} tournament${saturdayCount > 1 ? 's' : ''}<br>${saturdayNames}"`
+                    : `data-tooltip="${saturdayKey}: No tournaments"`;
 
                 html += `<div class="heatmap-cell"
-                             data-level="${level}"
-                             data-date="${dateKey}"
-                             ${tooltipData}
-                             style="${opacity}"
+                             data-level="${saturdayLevel}"
+                             data-date="${saturdayKey}"
+                             ${saturdayTooltip}
+                             style="${saturdayOpacity}"
                              onmouseover="showTooltip(event, this)"
                              onmouseout="hideTooltip()"></div>`;
 
-                date.setDate(date.getDate() + 1);
+                // Generate Sunday cell
+                const sundayDate = new Date(saturdayDate);
+                sundayDate.setDate(saturdayDate.getDate() + 1);
+
+                const sundayKey = sundayDate.toISOString().split('T')[0];
+                const sundayTournaments = tournamentsByDate.get(sundayKey) || [];
+                const sundayCount = sundayTournaments.length;
+
+                let sundayLevel = 0;
+                if (sundayCount > 0) {
+                    if (maxPerDay <= 1) {
+                        sundayLevel = 4;
+                    } else {
+                        sundayLevel = Math.min(4, Math.ceil((sundayCount / maxPerDay) * 4));
+                    }
+                }
+
+                const sundayOutOfRange = sundayDate < startDate || sundayDate > endDate;
+                const sundayOpacity = sundayOutOfRange ? 'opacity: 0.3;' : '';
+
+                const sundayNames = sundayTournaments.map(t => t.name).join('<br>');
+                const sundayTooltip = sundayTournaments.length > 0
+                    ? `data-tooltip="${sundayKey}: ${sundayCount} tournament${sundayCount > 1 ? 's' : ''}<br>${sundayNames}"`
+                    : `data-tooltip="${sundayKey}: No tournaments"`;
+
+                html += `<div class="heatmap-cell"
+                             data-level="${sundayLevel}"
+                             data-date="${sundayKey}"
+                             ${sundayTooltip}
+                             style="${sundayOpacity}"
+                             onmouseover="showTooltip(event, this)"
+                             onmouseout="hideTooltip()"></div>`;
+
+                // Move to next week (next Saturday)
+                date.setDate(date.getDate() + 7);
             }
 
             return html;
@@ -739,6 +777,46 @@
                 }
             });
 
+            // Calculate total weekends and weekends without tournaments
+            const dates = Array.from(tournamentsByDate.keys()).map(d => new Date(d));
+            const minDate = dates.length > 0 ? new Date(Math.min(...dates)) : new Date();
+            const year = minDate.getFullYear();
+            const startDate = new Date(year, 0, 1);
+            const endDate = new Date(year, 11, 31);
+
+            // Count total weekends in the year
+            let totalWeekends = 0;
+            const date = new Date(startDate);
+            const firstDay = date.getDay();
+            const daysUntilSaturday = (firstDay + 1) % 7;
+            date.setDate(date.getDate() - daysUntilSaturday);
+
+            while (date <= endDate) {
+                if (date >= startDate) {
+                    totalWeekends++;
+                }
+                date.setDate(date.getDate() + 7);
+            }
+
+            // Count weekends with tournaments
+            const weekendsWithTournaments = new Set();
+            tournamentsByDate.forEach((tournaments, dateKey) => {
+                const tournamentDate = new Date(dateKey);
+                const dayOfWeek = tournamentDate.getDay();
+                // If it's Saturday (6) or Sunday (0)
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    // Calculate the Saturday of this weekend
+                    const saturday = new Date(tournamentDate);
+                    if (dayOfWeek === 0) {
+                        saturday.setDate(saturday.getDate() - 1);
+                    }
+                    const weekendKey = saturday.toISOString().split('T')[0];
+                    weekendsWithTournaments.add(weekendKey);
+                }
+            });
+
+            const weekendsWithoutTournaments = totalWeekends - weekendsWithTournaments.size;
+
             statsDiv.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-label">Total Tournaments</div>
@@ -747,6 +825,10 @@
                 <div class="stat-card">
                     <div class="stat-label">Days with Tournaments</div>
                     <div class="stat-value">${totalDays}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Weekends without Tournaments</div>
+                    <div class="stat-value">${weekendsWithoutTournaments}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Busiest Day</div>
